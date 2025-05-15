@@ -1,0 +1,85 @@
+body{
+    display: flex;
+    justify-content: center;
+}
+#board{
+    display: inline-grid;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, 10em);
+    grid-template-rows: repeat(3, 10em);
+    border: 3px solid black;
+}
+#buttons{
+    display: inline-grid;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(6, 5em);
+    
+}
+#buttons button:nth-child(1) {
+    grid-column: 1 / 4; /* 1 → 4 covers half (3 columns out of 6) */
+} 
+#buttons button:nth-child(2) {
+    grid-column: 4 / 7; /* 4 → 7 (next half) */
+}
+#buttons button:nth-child(n+3) {
+    grid-column: span 2; /* Every normal button spans 2 columns (to "feel" like 3 per row) */
+}
+.square{
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-rows: repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    border: 3px solid black;
+}
+.number{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-style: dashed;
+    border-width: 1px;
+    border-color: gray;
+    padding: 15px;
+}
+
+.blcorner{
+    border-left: 0;
+    border-bottom: 0;
+}
+.brcorner{
+    border-right: 0;
+    border-bottom: 0;
+}
+.tlcorner{
+    border-left: 0;
+    border-top: 0;
+}
+.trcorner{
+    border-right: 0;
+    border-top: 0;
+}
+.top{
+    border-top: 0;
+}
+.left{
+    border-left: 0;
+}
+.right{
+    border-right: 0;
+}
+.bottom{
+    border-bottom: 0;
+}
+.equality.equality{
+    background-color: orange;
+}
+.neighbor{
+    background-color: rgb(189, 186, 186);
+}
+.invalid.invalid.invalid.invalid{
+    color: red;
+}
+.active.active.active{
+    font-weight: bold;
+    background-color: aqua;
+    border-color: red;
+}
