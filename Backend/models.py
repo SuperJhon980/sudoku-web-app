@@ -4,7 +4,7 @@ from typing import List
 
 # Define the shape of the expected request data
 class Cell(BaseModel):
-    value: int | None
+    value: int
     isEditable: bool
     isValid: bool
 
