@@ -18,7 +18,7 @@ class SudokuCell:
             self.hasSolution = False
 
     def removeSolution(self, num):
-        if not self.hasSolution:
+        if not self.hasSolution and num in self.solutionSet:
             self.solutionSet.remove(num)
     
     def addSolution(self, num):
@@ -40,10 +40,15 @@ class SudokuCell:
         else:
             self.hasSolution = True
             self.solutionSet = [self.number]
+        print(f"Cell at {self.row}, {self.col} hasSolution: {self.hasSolution}")
+        print(f"Solution is {self.number}")
 
+# This is the sudokuBoard object
+# 9x9 grid with each element a sudoku CELL
+# Keeps track of zeroCount to keep track later if there are any emptyCells
 class SudokuBoard:
     def __init__(self):
-        self.board = [[SudokuCell(0, x, y) for x in range(9)] for y in range(9)]
+        self.board = [[SudokuCell(0, y, x) for x in range(9)] for y in range(9)]
         self.zeroCount = 81
         self.heap = []
         self.buildHeap()
@@ -110,16 +115,18 @@ def createNewSudokuPuzzle():
 
 
 def createSolution(board):
-    while board.zeroCount > 1:
-        board.print()
+    while board.zeroCount > 0:
+        
         cell = board.pickNewCell()
         failsafe = 0
         pickNewSolution(board, cell, failsafe)
         board.updateSolutionSets(cell)
         board.zeroCount -= 1
+        board.print()
     return board
 
 def pickNewSolution(board, cell, failsafe):
+    cell.number = random.choice(cell.solutionSet)
     while(not moveValidation(board.getBoard(), cell.row, cell.col)):        # Check that the random number doesn't invalidate the solution
         print(cell.solutionSet)
         cell.number = random.choice(cell.solutionSet)
@@ -134,13 +141,14 @@ board = createNewSudokuPuzzle()
 neighbors = getNeighbors(1, 5)
 for x in neighbors:
     cell = board.board[x[0]][x[1]]
-    cell.number = 1
+    # cell.number = 1
 
 board.print()
 newBoard = board.getBoard()
 print()
 print("The board is valid: " + str(boardValidation(newBoard)))
 print("The board is solved: " + str(checkBoardSolution(newBoard)))
+board.print()
 
 
 

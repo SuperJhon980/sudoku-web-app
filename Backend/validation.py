@@ -70,12 +70,15 @@ def validateSquares(board):
 def moveValidation(board, row, column):
     num = board[row][column]
     print("Here is the number: " + str(num))
-    return (validateRow(board, row, num) and
-            validateColumn(board, column, num) and
-            validateSquare(board, row, column, num))
+    validRow = validateRow(board, row, num)
+    validCol = validateColumn(board, column, num)
+    validSquare = validateSquare(board, row, column, num)
+    valid = validRow and validCol and validSquare
+    return valid
 
 def validateRow(board, row, num):
-    return board[row].count(num) == 1
+    fullRow = board[row]
+    return fullRow.count(num) == 1
 
 def validateColumn(board, column, num):
     count = 0
