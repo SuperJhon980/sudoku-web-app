@@ -69,7 +69,6 @@ def validateSquares(board):
 # Controller function for move validation
 def moveValidation(board, row, column):
     num = board[row][column]
-    print("Here is the number: " + str(num))
     validRow = validateRow(board, row, num)
     validCol = validateColumn(board, column, num)
     validSquare = validateSquare(board, row, column, num)
