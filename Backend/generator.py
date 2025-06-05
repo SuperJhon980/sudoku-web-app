@@ -3,6 +3,7 @@ from validation import boardValidation, checkBoardSolution, moveValidation
 import random
 import heapq
 import copy
+import queue
 # SudokuCell class. It has it's own coords and number
 # Also holds a solution set that is used during puzzle generation
 class SudokuCell:
@@ -26,7 +27,8 @@ class SudokuCell:
     
     # Adds a number from the solutionSet. Used in retracing
     def addSolution(self, num):
-        self.solutionSet.append(num)
+        if not self.hasSolution and num not in self.solutionSet:
+            self.solutionSet.append(num)
 
     # Gets the count. Used for minHeap to pick most constrained variable
     def getCount(self):
@@ -69,15 +71,41 @@ class SudokuBoard:
                     # minHeap ordered by len(solutionSet), row, col
                     heapq.heappush(self.heap, (cell.getCount(), cell.row, cell.col))
 
-    # Function updates solutionsets after a cell's solution has been picked
-    def updateSolutionSets(self, solvedCell, diff):
+    def hasSolution(self):
+        return self.zeroCount == 0
+
+    def setCell(self, row, col, num):
+        cell = self.board[row][col]
+        self.stackDiff(cell)
+        numIsZero = num == 0
+        if numIsZero:
+            self.zeroCount += 1
+        else:
+            self.zeroCount -= 1
+        cell.number = num
+        self.updateSolutionSets(row, col, numIsZero)
+        
+
+    def stackDiff(self, cell):
+        newDiff = Diff(copy.deepcopy(cell))
+        neighbors = getNeighbors(cell.row, cell.col)
+        for coords in neighbors:
+            neighbor = self.board[coords[0]][coords[1]]
+            newDiff.addPrunedNeighbor(neighbor)    # Adds history of neighbors for backtracking
+        self.diffStack.append(newDiff)
+
+    # Function updates solutionsets after a cell's solution has been updated
+    def updateSolutionSets(self, row, col, numIsZero):
         # getNeighbors gets all the neighbors
-        neighbors = getNeighbors(solvedCell.row, solvedCell.col)
+        neighbors = getNeighbors(row, col)
+        updatedCell = self.board[row][col]
         for coords in neighbors:
             cell = self.board[coords[0]][coords[1]]
-            diff.addPrunedNeighbor(cell)    # Adds history of neighbors for backtracking
-            cell.removeSolution(solvedCell.number)
-        self.buildHeap()
+            if(numIsZero): 
+                cell.addSolution(self.diffStack[-1].assignedCell.number)
+                updatedCell.removeSolution(cell.number)
+            else:
+                cell.removeSolution(updatedCell.number)
 
     # Undo move from diffStack
     def undoMove(self):
@@ -86,9 +114,14 @@ class SudokuBoard:
         self.board[oldCell.row][oldCell.col] = oldCell
         for neighbor in diff.prunedNeighbors:
             self.board[neighbor.row][neighbor.col] = neighbor
+        if oldCell.number == 0:
+            self.zeroCount += 1
+        else:
+            self.zeroCount -= 1
     
     # Pops a cell from minHeap
     def pickNewCell(self):
+        self.buildHeap()
         coords = heapq.heappop(self.heap)
         cell = self.board[coords[1]][coords[2]]
         return cell
@@ -138,13 +171,6 @@ def getNeighbors(row, col):
     return neighbors
 
 
-# The logic to create the new sudoku puzzle
-# First create the solution
-def createNewSudokuPuzzle():
-    board = SudokuBoard()
-    board = createSolution(board, 0)
-    return board
-
 # Known refactoring possibility that I didn't want to spend more time thinking about:
 # Reset fails to zero after making it past a certain dead end...
 # I still can't tell if it does reset to zero or not. ChatGPT brainwashed me into thinking it did...
@@ -161,49 +187,125 @@ def createNewSudokuPuzzle():
 #
 # Good luck
 def createSolution(board, fails):
-    if board.zeroCount != 0:
+    if not board.hasSolution():
         cell = board.pickNewCell()
-        newDiff = Diff(cell)    # Keep history of board for backtracking
-        if pickNewSolution(board, cell): # Successfully found a solution, move forward
-            board.updateSolutionSets(cell, newDiff) # Pass the diff in to keep history
-            board.diffStack.append(newDiff) # diffStack is the history of the board
-            board.zeroCount -= 1
-
+        if cell.solutionSet: # Cell has possible solutions, move forward
+            trySolution(board, cell, random.choice(tuple(cell.solutionSet)))
             # ✅ Don’t reset fails immediately
             return createSolution(board, fails)
         else: # No solution found
             for _ in range(fails):
                 board.undoMove()
-                board.zeroCount += 1
             return createSolution(board, fails + 1)
-
+    print()
+    print("Here is the solution to the board")
+    board.print()
+    print(f"Solution is valid: {checkBoardSolution(board.getBoard())}")
     return board  # Success: all zeros filled
 
 # This function picks a solution and returns a solution
 # The cell chosen was forward checked already
 # Returns false if we have hit a dead end
-def pickNewSolution(board, cell):
-    if not cell.solutionSet:
-        return False  # No possible values, trigger backtracking
-    cell.number = random.choice(tuple(cell.solutionSet))
+def trySolution(board, cell, num):
+    board.setCell(cell.row, cell.col, num)
     if moveValidation(board.getBoard(), cell.row, cell.col):
         return True  # Found a valid move
-    else: # This else statement is chatGPT BLOAT. Lmao. What a waste...
-        cell.solutionSet.remove(cell.number)  # Remove invalid choice and try again
-        print("Shouldn't be here to my knowledge. Explore why you are")
-        print("You'll learn something")
-        print("ERROR ERROR ERROR REDACTED REDATCED REDACTED")
-
     return False  # Exhausted all possibilities, no valid number found
+    
+    
+# This is a sort of controller function that calls remove hints
+def createPuzzle(board):
+    cellQueue = buildRandomQueue(board)
+    while(board.zeroCount < 10):
+        removeHints(board, cellQueue)
+        print(f"Removed {81 - cellQueue.qsize()} numbers")
+    return board
+
+# RemoveHints is brothers with createSolution, as it needs to do backtracking if 
+# removing a certain hint is unsuccesful
+def removeHints(board, cellQueue):
+    cell = cellQueue.get()
+    board.stackDiff(cell)
+    oldNum = cell.number
+    cell.number = 0
+    board.updateSolutionSets(cell, oldNum)
+    if countSolutions(board, 0) > 1:
+        board.undoMove()
+        cellQueue.put(cell)
+    
+    return 1
+
+def countSolutions(board):
+    countHolder = [0]
+    hasSolution(board, countHolder)
+    if countHolder[0] == 1:
+        print("Puzzle has a unique solution")
+    elif countHolder[0] > 1:
+        print("Puzzle has multiple solutions")
+    else:
+        print("No solution found")
+
+def hasSolution(board, countHolder):
+    # Base case: board is solved
+    if board.hasSolution() and checkBoardSolution(board.getBoard()):
+        print(f"Found solution #{countHolder[0] + 1}")
+        countHolder[0] += 1
+        board.print()
+        return 
+    
+    if countHolder[0] > 5:
+        return
+    board.buildHeap()
+
+    if not board.heap:
+        return
+
+    cell = board.pickNewCell()
+
+    if not cell.solutionSet:    # Hit a dead end where cell has no possible options
+        return 0
+    
+    for digit in cell.solutionSet:
+        if trySolution(board, cell, digit):
+            hasSolution(board, countHolder)
+        board.undoMove()
+    return
     
 
 
-board = createNewSudokuPuzzle()
-# board = SudokuBoard()
 
+
+
+def buildRandomQueue(board):
+    q = queue.Queue()
+    cells = [cell for row in board.board for cell in row]
+    random.shuffle(cells)
+    for cell in cells:
+        q.put(cell)
+    return q
+
+# The logic to create the new sudoku puzzle
+# First create the solution
+def createNewSudokuPuzzle():
+    board = SudokuBoard()
+    board = createSolution(board, 0)
+    board.print()
+    print("-----")
+    board = createPuzzle(board)
+    return board
+
+
+# board = createNewSudokuPuzzle()
+board = SudokuBoard()
+board = createSolution(board, 0)
+for x in range(3):
+    for n in range(9):
+        cell = board.board[x][n]
+        board.setCell(cell.row, cell.col, 0)
 
 newBoard = board.getBoard()
 print("---------")
+countSolutions(board)
 board.print()
 print("---------")
 print("The board is valid: " + str(boardValidation(newBoard)))
@@ -233,7 +335,7 @@ def graveyardCreateSolution(board):
         
         cell = board.pickNewCell()
         failsafe = 0
-        pickNewSolution(board, cell, failsafe)
+        #pickNewSolution(board, cell, failsafe)
         board.updateSolutionSets(cell)
         board.zeroCount -= 1
         board.print()

@@ -1,9 +1,4 @@
-TODO - Create Buttons
-Sudoku Game Engine. Py???
-I guess connect backend with frontend somehow??
-Give sydney (my finace) kisses
-
-Am I doing too much with the endless sudoku div's.
-Is there a better way to do what I am trying to do?
+Welcome to my sudoku web app
+It is not perfect, but it is mine and I love it
 
 python -m uvicorn main:app --reload
